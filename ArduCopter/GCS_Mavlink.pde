@@ -66,6 +66,7 @@ static NOINLINE void send_heartbeat(mavlink_channel_t chan)
     case LOITER:
     case GUIDED:
     case CIRCLE:
+	case FOLLOW_ME:
         base_mode |= MAV_MODE_FLAG_GUIDED_ENABLED;
         // note that MAV_MODE_FLAG_AUTO_ENABLED does not match what
         // APM does in any mode, as that is defined as "system finds its own goal
@@ -162,6 +163,7 @@ static NOINLINE void send_extended_status1(mavlink_channel_t chan, uint16_t pack
     case GUIDED:
     case CIRCLE:
     case POSITION:
+	case FOLLOW_ME:
         control_sensors_enabled |= (1<<12); // yaw position
         control_sensors_enabled |= (1<<14); // X/Y position control
         break;
@@ -1280,6 +1282,7 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
         case POSITION:
         case LAND:
         case OF_LOITER:
+		case FOLLOW_ME:
             set_mode(packet.custom_mode);
             break;
         }

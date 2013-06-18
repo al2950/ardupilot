@@ -133,7 +133,8 @@
                                         // sensor
 #define TOY_A 11                        // THOR Enum for Toy mode
 #define TOY_M 12                        // THOR Enum for Toy mode
-#define NUM_MODES 13
+#define FOLLOW_ME 13					// AUTO control
+#define NUM_MODES 14
 
 // CH_6 Tuning
 // -----------

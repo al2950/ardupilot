@@ -321,6 +321,7 @@ static bool mode_requires_GPS(uint8_t mode) {
         case RTL:
         case CIRCLE:
         case POSITION:
+		case FOLLOW_ME:
             return true;
         default:
             return false;
@@ -484,6 +485,15 @@ static void set_mode(uint8_t mode)
         set_throttle_mode(THROTTLE_HOLD);
         break;
 
+	case FOLLOW_ME:
+    	ap.manual_throttle = false;
+    	ap.manual_attitude = false;
+        set_yaw_mode(get_wp_yaw_mode(false));
+        set_roll_pitch_mode(GUIDED_RP);
+        set_throttle_mode(GUIDED_THR);
+        set_nav_mode(GUIDED_NAV);
+		break;
+
     default:
         break;
     }
@@ -638,6 +648,9 @@ print_flight_mode(AP_HAL::BetterStream *port, uint8_t mode)
     case TOY_A:
         port->print_P(PSTR("TOY_A"));
         break;
+	case FOLLOW_ME:
+		port->print_P(PSTR("FOLLOW_ME"));
+		break;
     default:
         port->printf_P(PSTR("Mode(%u)"), (unsigned)mode);
         break;
