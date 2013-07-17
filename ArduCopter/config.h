@@ -687,6 +687,22 @@
  # define POSITION_NAV              NAV_LOITER
 #endif
 
+//FOLLOW_ME
+#ifndef FOLLOW_ME_YAW
+ # define FOLLOW_ME_YAW             YAW_LOOK_AT_LOCATION
+#endif
+
+#ifndef FOLLOW_ME_RP
+ # define FOLLOW_ME_RP              ROLL_PITCH_AUTO
+#endif
+
+#ifndef FOLLOW_ME_THR
+ # define FOLLOW_ME_THR             THROTTLE_AUTO
+#endif
+
+#ifndef FOLLOW_ME_NAV
+ # define FOLLOW_ME_NAV           	NAV_WP
+#endif
 
 // RTL Mode
 // Note: RTL Yaw behaviour is controlled by WP_YAW_BEHAVIOR parameter

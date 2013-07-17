@@ -488,10 +488,10 @@ static void set_mode(uint8_t mode)
 	case FOLLOW_ME:
     	ap.manual_throttle = false;
     	ap.manual_attitude = false;
-        set_yaw_mode(get_wp_yaw_mode(false));
-        set_roll_pitch_mode(GUIDED_RP);
-        set_throttle_mode(GUIDED_THR);
-        set_nav_mode(GUIDED_NAV);
+        set_yaw_mode(FOLLOW_ME_YAW);
+        set_roll_pitch_mode(FOLLOW_ME_RP);
+        set_throttle_mode(FOLLOW_ME_THR);
+        set_nav_mode(FOLLOW_ME_NAV);
 		break;
 
     default:
