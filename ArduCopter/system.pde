@@ -340,7 +340,7 @@ static bool mode_requires_GPS(uint8_t mode) {
         case CIRCLE:
         case POSITION:
         case DRIFT:
-        case FOLLLOW_ME:
+        case FOLLOW_ME:
             return true;
         default:
             return false;
@@ -496,8 +496,7 @@ static bool set_mode(uint8_t mode)
             break;
 
         case FOLLOW_ME:
-            ap.manual_throttle = false;
-             ap.manual_attitude = false;
+			success = true;
             set_yaw_mode(FOLLOW_ME_YAW);
             set_roll_pitch_mode(FOLLOW_ME_RP);
             set_throttle_mode(FOLLOW_ME_THR);
