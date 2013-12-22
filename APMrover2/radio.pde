@@ -7,6 +7,7 @@ static void set_control_channels(void)
 {
     channel_steer    = RC_Channel::rc_channel(rcmap.roll()-1);
     channel_throttle = RC_Channel::rc_channel(rcmap.throttle()-1);
+    channel_learn    = RC_Channel::rc_channel(g.learn_channel-1);
 
 	// set rc channel ranges
 	channel_steer->set_angle(SERVO_MAX);
@@ -16,11 +17,11 @@ static void set_control_channels(void)
 static void init_rc_in()
 {
 	// set rc dead zones
-	channel_steer->set_dead_zone(60);
-	channel_throttle->set_dead_zone(6);
+	channel_steer->set_default_dead_zone(30);
+	channel_throttle->set_default_dead_zone(30);
 
 	//set auxiliary ranges
-    update_aux_servo_function(&g.rc_2, &g.rc_4, &g.rc_5, &g.rc_6, &g.rc_7, &g.rc_8);
+    update_aux();
 }
 
 static void init_rc_out()
@@ -29,10 +30,28 @@ static void init_rc_out()
         RC_Channel::rc_channel(i)->enable_out();
         RC_Channel::rc_channel(i)->output_trim();
     }
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_PX4
+    servo_write(CH_9,   g.rc_9.radio_trim);
+#endif
+#if CONFIG_HAL_BOARD == HAL_BOARD_APM2 || CONFIG_HAL_BOARD == HAL_BOARD_PX4
+    servo_write(CH_10,  g.rc_10.radio_trim);
+    servo_write(CH_11,  g.rc_11.radio_trim);
+#endif
+#if CONFIG_HAL_BOARD == HAL_BOARD_PX4
+    servo_write(CH_12,  g.rc_12.radio_trim);
+#endif
 }
 
 static void read_radio()
 {
+    if (!hal.rcin->valid_channels()) {
+        control_failsafe(channel_throttle->radio_in);
+        return;
+    }
+
+    failsafe.last_valid_rc_ms = hal.scheduler->millis();
+
     for (uint8_t i=0; i<8; i++) {
         RC_Channel::rc_channel(i)->set_pwm(RC_Channel::rc_channel(i)->read());
     }
@@ -41,8 +60,8 @@ static void read_radio()
 
 	channel_throttle->servo_out = channel_throttle->control_in;
 
-	if (channel_throttle->servo_out > 50) {
-        throttle_nudge = (g.throttle_max - g.throttle_cruise) * ((channel_throttle->norm_input()-0.5) / 0.5);
+	if (abs(channel_throttle->servo_out) > 50) {
+        throttle_nudge = (g.throttle_max - g.throttle_cruise) * ((fabsf(channel_throttle->norm_input())-0.5) / 0.5);
 	} else {
 		throttle_nudge = 0;
 	}
@@ -89,7 +108,11 @@ static void control_failsafe(uint16_t pwm)
 	if (rc_override_active) {
         failsafe_trigger(FAILSAFE_EVENT_RC, (millis() - failsafe.rc_override_timer) > 1500);
 	} else if (g.fs_throttle_enabled) {
-        failsafe_trigger(FAILSAFE_EVENT_THROTTLE, pwm < (uint16_t)g.fs_throttle_value);
+        bool failed = pwm < (uint16_t)g.fs_throttle_value;
+        if (hal.scheduler->millis() - failsafe.last_valid_rc_ms > 2000) {
+            failed = true;
+        }
+        failsafe_trigger(FAILSAFE_EVENT_THROTTLE, failed);
 	}
 }
 

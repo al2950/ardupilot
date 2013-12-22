@@ -2,7 +2,6 @@
 
 //Function that will read the radio data, limit servos and trigger a failsafe
 // ----------------------------------------------------------------------------
-static uint8_t failsafeCounter = 0;                // we wait a second to take over the throttle and send the plane circling
 
 /*
   allow for runtime change of control channel ordering
@@ -27,24 +26,12 @@ static void set_control_channels(void)
 static void init_rc_in()
 {
     // set rc dead zones
-    channel_roll->set_dead_zone(60);
-    channel_pitch->set_dead_zone(60);
-    channel_rudder->set_dead_zone(60);
-    channel_throttle->set_dead_zone(6);
+    channel_roll->set_default_dead_zone(30);
+    channel_pitch->set_default_dead_zone(30);
+    channel_rudder->set_default_dead_zone(30);
+    channel_throttle->set_default_dead_zone(30);
 
-    //channel_roll->dead_zone  = 60;
-    //channel_pitch->dead_zone     = 60;
-    //channel_rudder->dead_zone    = 60;
-    //channel_throttle->dead_zone = 6;
-
-    //set auxiliary ranges
-#if CONFIG_HAL_BOARD == HAL_BOARD_PX4
-    update_aux_servo_function(&g.rc_5, &g.rc_6, &g.rc_7, &g.rc_8, &g.rc_9, &g.rc_10, &g.rc_11, &g.rc_12);
-#elif CONFIG_HAL_BOARD == HAL_BOARD_APM2
-    update_aux_servo_function(&g.rc_5, &g.rc_6, &g.rc_7, &g.rc_8, &g.rc_9, &g.rc_10, &g.rc_11);
-#else
-    update_aux_servo_function(&g.rc_5, &g.rc_6, &g.rc_7, &g.rc_8);
-#endif
+    update_aux();
 }
 
 /*
@@ -54,7 +41,9 @@ static void init_rc_out()
 {
     channel_roll->enable_out();
     channel_pitch->enable_out();
-    channel_throttle->enable_out();
+    if (arming.arming_required() != AP_Arming::YES_ZERO_PWM) {
+        channel_throttle->enable_out();
+    }
     channel_rudder->enable_out();
     enable_aux_servos();
 
@@ -63,8 +52,10 @@ static void init_rc_out()
         RC_Channel::rc_channel(i)->output_trim();
     }
 
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM2 || CONFIG_HAL_BOARD == HAL_BOARD_PX4
+#if CONFIG_HAL_BOARD == HAL_BOARD_PX4
     servo_write(CH_9,   g.rc_9.radio_trim);
+#endif
+#if CONFIG_HAL_BOARD == HAL_BOARD_APM2 || CONFIG_HAL_BOARD == HAL_BOARD_PX4
     servo_write(CH_10,  g.rc_10.radio_trim);
     servo_write(CH_11,  g.rc_11.radio_trim);
 #endif
@@ -73,8 +64,69 @@ static void init_rc_out()
 #endif
 }
 
+// check for pilot input on rudder stick for arming
+static void rudder_arm_check() 
+{
+    //TODO: ensure rudder arming disallowed during radio calibration
+
+    //TODO: waggle ailerons and rudder and beep after rudder arming
+    
+    static uint32_t rudder_arm_timer;
+
+    if (arming.is_armed()) {
+        //already armed, no need to run remainder of this function
+        rudder_arm_timer = 0;
+        return;
+    } 
+
+    if (! arming.rudder_arming_enabled()) {
+        //parameter disallows rudder arming
+        return;
+    }
+
+    //if throttle is not down, then pilot cannot rudder arm
+    if (g.rc_3.control_in > 0) {
+        rudder_arm_timer = 0;
+        return;
+    }
+
+    //if not in a 'manual' mode then disallow rudder arming
+    if (auto_throttle_mode ) {
+        rudder_arm_timer = 0;
+        return;      
+    }
+
+    // full right rudder starts arming counter
+    if (g.rc_4.control_in > 4000) {
+        uint32_t now = millis();
+
+        if (rudder_arm_timer == 0 || 
+            now - rudder_arm_timer < 3000) {
+
+            if (rudder_arm_timer == 0) rudder_arm_timer = now;
+        } else {
+            //time to arm!
+            if (arming.arm(AP_Arming::RUDDER)) {
+                channel_throttle->enable_out();                        
+                //only log if arming was successful
+                Log_Arm_Disarm();
+            }                
+        }
+    } else { 
+        // not at full right rudder
+        rudder_arm_timer = 0;
+    }
+}
+
 static void read_radio()
 {
+    if (!hal.rcin->valid_channels()) {
+        control_failsafe(channel_throttle->radio_in);
+        return;
+    }
+
+    failsafe.last_valid_rc_ms = hal.scheduler->millis();
+
     elevon.ch1_temp = channel_roll->read();
     elevon.ch2_temp = channel_pitch->read();
     uint16_t pwm_roll, pwm_pitch;
@@ -111,24 +163,18 @@ static void read_radio()
     channel_throttle->servo_out = channel_throttle->control_in;
 
     if (g.throttle_nudge && channel_throttle->servo_out > 50) {
-        float nudge = (channel_throttle->servo_out - 50) * 0.02;
-        if (alt_control_airspeed()) {
-            airspeed_nudge_cm = (g.flybywire_airspeed_max * 100 - g.airspeed_cruise_cm) * nudge;
+        float nudge = (channel_throttle->servo_out - 50) * 0.02f;
+        if (airspeed.use()) {
+            airspeed_nudge_cm = (aparm.airspeed_max * 100 - g.airspeed_cruise_cm) * nudge;
         } else {
-            throttle_nudge = (g.throttle_max - g.throttle_cruise) * nudge;
+            throttle_nudge = (aparm.throttle_max - aparm.throttle_cruise) * nudge;
         }
     } else {
         airspeed_nudge_cm = 0;
         throttle_nudge = 0;
     }
 
-    /*
-     *  cliSerial->printf_P(PSTR("OUT 1: %d\t2: %d\t3: %d\t4: %d \n"),
-     *                       (int)g.rc_1.control_in,
-     *                       (int)g.rc_2.control_in,
-     *                       (int)g.rc_3.control_in,
-     *                       (int)g.rc_4.control_in);
-     */
+    rudder_arm_check();
 }
 
 static void control_failsafe(uint16_t pwm)
@@ -137,38 +183,42 @@ static void control_failsafe(uint16_t pwm)
         return;
 
     // Check for failsafe condition based on loss of GCS control
-    if (rc_override_active) {
-        if (millis() - last_heartbeat_ms > FAILSAFE_SHORT_TIME) {
-            ch3_failsafe = true;
+    if (failsafe.rc_override_active) {
+        if (millis() - failsafe.last_heartbeat_ms > g.short_fs_timeout*1000) {
+            failsafe.ch3_failsafe = true;
+            AP_Notify::flags.failsafe_radio = true;
         } else {
-            ch3_failsafe = false;
+            failsafe.ch3_failsafe = false;
+            AP_Notify::flags.failsafe_radio = false;
         }
 
         //Check for failsafe and debounce funky reads
     } else if (g.throttle_fs_enabled) {
-        if (pwm < (unsigned)g.throttle_fs_value) {
+        if (throttle_failsafe_level()) {
             // we detect a failsafe from radio
             // throttle has dropped below the mark
-            failsafeCounter++;
-            if (failsafeCounter == 9) {
+            failsafe.ch3_counter++;
+            if (failsafe.ch3_counter == 10) {
                 gcs_send_text_fmt(PSTR("MSG FS ON %u"), (unsigned)pwm);
-            }else if(failsafeCounter == 10) {
-                ch3_failsafe = true;
-            }else if (failsafeCounter > 10) {
-                failsafeCounter = 11;
+                failsafe.ch3_failsafe = true;
+                AP_Notify::flags.failsafe_radio = true;
+            }
+            if (failsafe.ch3_counter > 10) {
+                failsafe.ch3_counter = 10;
             }
 
-        }else if(failsafeCounter > 0) {
+        }else if(failsafe.ch3_counter > 0) {
             // we are no longer in failsafe condition
             // but we need to recover quickly
-            failsafeCounter--;
-            if (failsafeCounter > 3) {
-                failsafeCounter = 3;
+            failsafe.ch3_counter--;
+            if (failsafe.ch3_counter > 3) {
+                failsafe.ch3_counter = 3;
             }
-            if (failsafeCounter == 1) {
+            if (failsafe.ch3_counter == 1) {
                 gcs_send_text_fmt(PSTR("MSG FS OFF %u"), (unsigned)pwm);
-            } else if(failsafeCounter == 0) {
-                ch3_failsafe = false;
+            } else if(failsafe.ch3_counter == 0) {
+                failsafe.ch3_failsafe = false;
+                AP_Notify::flags.failsafe_radio = false;
             }
         }
     }
@@ -235,4 +285,22 @@ static void trim_radio()
     }
 
     trim_control_surfaces();
+}
+
+/*
+  return true if throttle level is below throttle failsafe threshold
+ */
+static bool throttle_failsafe_level(void)
+{
+    if (!g.throttle_fs_enabled) {
+        return false;
+    }
+    if (hal.scheduler->millis() - failsafe.last_valid_rc_ms > 2000) {
+        // we haven't had a valid RC frame for 2 seconds
+        return true;
+    }
+    if (channel_throttle->get_reverse()) {
+        return channel_throttle->radio_in >= g.throttle_fs_value;
+    }
+    return channel_throttle->radio_in <= g.throttle_fs_value;
 }

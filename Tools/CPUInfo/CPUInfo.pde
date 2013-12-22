@@ -13,6 +13,10 @@
 #include <AP_Common.h>
 #include <AP_Baro.h>
 #include <AP_ADC.h>
+#include <AP_GPS.h>
+#include <AP_InertialSensor.h>
+#include <AP_Notify.h>
+#include <DataFlash.h>
 #include <GCS_MAVLink.h>
 #include <AP_Compass.h>
 #include <AP_Declination.h>
@@ -97,7 +101,8 @@ static void show_timings(void)
 	TIMEIT("fadd", v_out += v_f, 100);
 	TIMEIT("fsub", v_out -= v_f, 100);
 	TIMEIT("fmul", v_out *= v_f, 100);
-	TIMEIT("fdiv", v_out /= v_f, 100);
+	TIMEIT("fdiv /=", v_out /= v_f, 100);
+    TIMEIT("fdiv 2/x", v_out = 2.0f/v_f, 100);
 
 	TIMEIT("dadd", v_out_d += v_d, 100);
 	TIMEIT("dsub", v_out_d -= v_d, 100);
