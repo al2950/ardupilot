@@ -496,11 +496,13 @@ static bool set_mode(uint8_t mode)
             break;
 
         case FOLLOW_ME:
-			success = true;
-            set_yaw_mode(FOLLOW_ME_YAW);
-            set_roll_pitch_mode(FOLLOW_ME_RP);
-            set_throttle_mode(FOLLOW_ME_THR);
-            set_nav_mode(FOLLOW_ME_NAV);
+            if (GPS_ok() || ignore_checks) {
+                success = true;
+                set_yaw_mode(FOLLOW_ME_YAW);
+                set_roll_pitch_mode(FOLLOW_ME_RP);
+                set_throttle_mode(FOLLOW_ME_THR);
+                set_nav_mode(FOLLOW_ME_NAV);
+            }
         break;
         default:
             success = false;

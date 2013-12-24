@@ -8,6 +8,10 @@ static void run_nav_updates(void)
     // fetch position from inertial navigation
     calc_position();
 
+    // calculate navigation target wp (eg for Follow_me mode)
+    // NB this needs to be done between fetching position and calcultation dist/bearing
+    calc_target_wp();
+
     // calculate distance and bearing for reporting and autopilot decisions
     calc_distance_and_bearing();
 
@@ -48,6 +52,15 @@ static void calc_distance_and_bearing()
 
         // update super simple bearing (if required) because it relies on home_bearing
         update_super_simple_bearing(false);
+    }
+}
+
+static void calc_target_wp()
+{
+    //only calculate target for the FOLLOW ME mode (other modes set destination directly)
+    if ( control_mode == FOLLOW_ME )
+    {
+        wp_nav.set_destination(roi_target_pos);
     }
 }
 
