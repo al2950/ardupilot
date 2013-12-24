@@ -1001,10 +1001,13 @@ static void do_repeat_relay()
 //	TO-DO: add support for other features of MAV_CMD_DO_SET_ROI including pointing at a given waypoint
 static void do_roi()
 {
+    roi_target_pos = pv_location_to_vector(command_cond_queue);
+    roi_target_dir = command_cond_queue.p1;
+
 #if MOUNT == ENABLED
     // check if mount type requires us to rotate the quad
     if( camera_mount.get_mount_type() != AP_Mount::k_pan_tilt && camera_mount.get_mount_type() != AP_Mount::k_pan_tilt_roll ) {
-        yaw_look_at_WP = pv_location_to_vector(command_cond_queue);
+        yaw_look_at_WP = roi_target_pos;
         set_yaw_mode(YAW_LOOK_AT_LOCATION);
     }
     // send the command to the camera mount
@@ -1018,9 +1021,9 @@ static void do_roi()
     //		4: point at a target given a target id (can't be implemented)
 #else
     // if we have no camera mount aim the quad at the location
-    yaw_look_at_WP = pv_location_to_vector(command_cond_queue);
+    yaw_look_at_WP = roi_target_pos;
     set_yaw_mode(YAW_LOOK_AT_LOCATION);
-#endif
+#endif    
 }
 
 // do_take_picture - take a picture with the camera library
@@ -1033,3 +1036,4 @@ static void do_take_picture()
     }
 #endif
 }
+
