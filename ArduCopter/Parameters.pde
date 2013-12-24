@@ -65,6 +65,28 @@ const AP_Param::Info var_info[] PROGMEM = {
     GSCALAR(serial2_baud,   "SERIAL2_BAUD",     SERIAL2_BAUD/1000),
 #endif
 
+    // @Param: FOLLOW_ME_OFFSET_X
+    // @DisplayName: Follow me offset x component
+    // @Description: Follow me offset x component
+    // @Units: Meters
+    // @Range: -100 100
+    // @Increment: 0.1
+
+    // @Param: FOLLOW_ME_OFFSET_Y
+    // @DisplayName: Follow me offset y component
+    // @Description: Follow me offset y component
+    // @Units: Meters
+    // @Range: -100 100
+    // @Increment: 0.1
+
+    // @Param: FOLLOW_ME_OFFSET_Z
+    // @DisplayName: Follow me offset z component
+    // @Description: Follow me offset z component
+    // @Units: Meters
+    // @Range: -100 100
+    // @Increment: 0.1
+    GSCALAR(follow_me_offset, "FOLLOW_ME_OFFSET", 0),
+
     // @Param: TELEM_DELAY
     // @DisplayName: Telemetry startup delay
     // @Description: The amount of time (in seconds) to delay radio telemetry to prevent an Xbee bricking on power up

@@ -135,6 +135,11 @@ public:
         k_param_inertial_nav = 100,
         k_param_wp_nav = 101,
 
+        //
+        // 102: Follow Me
+        ///
+        k_param_follow_me_offset = 102,
+
         // 110: Telemetry control
         //
         k_param_gcs0 = 110,
@@ -282,6 +287,9 @@ public:
 
     AP_Int16        format_version;
     AP_Int8         software_type;
+
+    // Follow Me
+    AP_Vector3f     follow_me_offset;
 
     // Telemetry control
     //
