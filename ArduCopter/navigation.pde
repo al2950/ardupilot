@@ -60,7 +60,12 @@ static void calc_target_wp()
     //only calculate target for the FOLLOW ME mode (other modes set destination directly)
     if ( control_mode == FOLLOW_ME )
     {
-        wp_nav.set_destination(roi_target_pos);
+        //Rotate offset vector by direction of target and add to target pos
+        Vector3f temp;
+        temp.x = roi_target_pos.x + (g.follow_me_offset.get().x * cosf(ToRad(roi_target_dir))) - (g.follow_me_offset.get().y * sinf(ToRad(roi_target_dir)));
+        temp.y = roi_target_pos.y + (g.follow_me_offset.get().y * cosf(ToRad(roi_target_dir))) + (g.follow_me_offset.get().x * sinf(ToRad(roi_target_dir)));
+        temp.z = roi_target_pos.z + g.follow_me_offset.get().z;
+        wp_nav.set_destination(temp);
     }
 }
 
