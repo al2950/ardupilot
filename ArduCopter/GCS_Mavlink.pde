@@ -219,14 +219,6 @@ static NOINLINE void send_extended_status1(mavlink_channel_t chan, uint16_t pack
 
 }
 
-static void NOINLINE send_meminfo(mavlink_channel_t chan)
-{
-#if CONFIG_HAL_BOARD == HAL_BOARD_APM1 || CONFIG_HAL_BOARD == HAL_BOARD_APM2
-    extern unsigned __brkval;
-    mavlink_msg_meminfo_send(chan, __brkval, memcheck_available_memory());
-#endif
-}
-
 static void NOINLINE send_location(mavlink_channel_t chan)
 {
     uint32_t fix_time;
@@ -585,7 +577,7 @@ static bool mavlink_try_send_message(mavlink_channel_t chan, enum ap_message id,
 
     case MSG_EXTENDED_STATUS2:
         CHECK_PAYLOAD_SIZE(MEMINFO);
-        send_meminfo(chan);
+        gcs[chan-MAVLINK_COMM_0].send_meminfo();
         break;
 
     case MSG_ATTITUDE:
@@ -1346,7 +1338,10 @@ void GCS_MAVLINK::handleMessage(mavlink_message_t* msg)
 
         case MAV_CMD_NAV_ROI:
         case MAV_CMD_DO_SET_ROI:
-            param1 = tell_command.p1;                                   // MAV_ROI (aka roi mode) is held in wp's parameter but we actually do nothing with it because we only support pointing at a specific location provided by x,y and z parameters
+            param1 = tell_command.p1;                        // MAV_ROI (aka roi mode) is held in wp's parameter but we actually do nothing with it because we only support pointing at a specific location provided by x,y and z parameters
+            x = tell_command.lat/1.0e7f;                     // local (x), global (latitude)
+            y = tell_command.lng/1.0e7f;                     // local (y), global (longitude)
+            z = tell_command.alt/1.0e2f;                     // local (z), global/relative (altitude)
             break;
 
         case MAV_CMD_CONDITION_YAW:
